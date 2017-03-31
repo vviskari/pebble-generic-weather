@@ -3,6 +3,7 @@
 #include <pebble.h>
 
 #define GENERIC_WEATHER_BUFFER_SIZE 32
+#define GENERIC_WEATHER_FORECAST_SIZE 24
 
 //! Possible statuses of the weather library
 typedef enum {
@@ -37,6 +38,14 @@ typedef enum {
   GenericWeatherConditionUnknown = 1000
 } GenericWeatherConditionCode;
 
+typedef struct {
+  time_t timestamp;
+  int16_t temp_k;
+  int16_t temp_c;
+  int16_t temp_f;
+  GenericWeatherConditionCode condition;
+} GenericWeatherForecast;
+
 //! Struct containing weather data
 typedef struct {
   //! Weather conditions string e.g: "Sky is clear"
@@ -58,6 +67,12 @@ typedef struct {
   //! Sunset time UTC
   time_t timesunset;
 } GenericWeatherInfo;
+
+typedef struct {
+  GenericWeatherInfo *info;
+  int forecastSize;
+  GenericWeatherForecast *forecast;
+} GenericWeatherPeekData;
 
 //! Possible weather providers
 typedef enum {
@@ -87,7 +102,7 @@ typedef struct {
 //! Callback for a weather fetch
 //! @param info The struct containing the weather data
 //! @param status The current GenericWeatherStatus, which may have changed.
-typedef void(GenericWeatherCallback)(GenericWeatherInfo *info, GenericWeatherStatus status);
+typedef void(GenericWeatherCallback)(GenericWeatherInfo *info, GenericWeatherForecast *forecast, int forecastSize, GenericWeatherStatus status);
 
 //! Initialize the weather library. The data is fetched after calling this, and should be accessed
 //! and stored once the callback returns data, if it is successful.
@@ -109,6 +124,11 @@ void generic_weather_set_location(const GenericWeatherCoordinates coordinates);
 //! @param feels_like The "feels like" setting (default is false)
 void generic_weather_set_feels_like(const bool feels_like);
 
+//! Fetch weather forecast data or not. Not all providers support this.
+//! The resulting forecast might be an hourly or daily forecast data, depending on provider.
+//! @param forecast (default is false)
+void generic_weather_set_forecast(const bool forecast);
+
 //! Important: This uses the AppMessage system. You should only use AppMessage yourself
 //! either before calling this, or after you have obtained your weather data.
 //! @param callback Callback to be called once the weather.
@@ -122,7 +142,7 @@ void generic_weather_deinit();
 //! returned GenericWeatherInfo before accessing data members.
 //! @return GenericWeatherInfo object, internally allocated.
 //! If NULL, generic_weather_init() has not been called.
-GenericWeatherInfo* generic_weather_peek();
+GenericWeatherPeekData generic_weather_peek();
 
 //! Save the current state of the weather library
 //! @param key The key to write to.
@@ -131,3 +151,7 @@ void generic_weather_save(const uint32_t key);
 //! Load the state of the weather library from persistent storage
 //! @param key The key to read from.
 void generic_weather_load(const uint32_t key);
+
+void generic_weather_save_forecast(const uint32_t key);
+
+void generic_weather_load_forecast(const uint32_t key);

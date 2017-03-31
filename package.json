@@ -31,7 +31,11 @@
             "GW_SUNSET",
             "GW_BADKEY",
             "GW_LOCATIONUNAVAILABLE",
-            "GW_FEELS_LIKE"
+            "GW_FEELS_LIKE",
+            "GW_FORECAST",
+            "GW_FORECAST_TIME[24]",
+            "GW_FORECAST_TEMPK[24]",
+            "GW_FORECAST_CONDITIONCODE[24]"
         ],
         "projectType": "package",
         "resources": {

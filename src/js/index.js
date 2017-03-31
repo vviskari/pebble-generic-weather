@@ -1,10 +1,12 @@
 var SunCalc = require('suncalc');
+var keys = require('message_keys');
 
 var GenericWeather = function() {
   
   this._apiKey    = '';
   this._provider  = GenericWeather.ProviderOpenWeatherMap;
   this._feelsLike = false;
+  this._forecast  = false;
 
   var conditions = {
     ClearSky        : 0,
@@ -35,8 +37,8 @@ var GenericWeather = function() {
   };
 
   this._getWeatherOWM = function(coords) {
-    var url = 'http://api.openweathermap.org/data/2.5/weather?appid=' + this._apiKey
-      + '&lat=' + coords.latitude + '&lon=' + coords.longitude;
+    var url = 'http://api.openweathermap.org/data/2.5/weather?appid=' + 
+        this._apiKey + '&lat=' + coords.latitude + '&lon=' + coords.longitude;
 
     console.log('weather: Contacting OpenWeatherMap.org...');
     // console.log(url);
@@ -66,7 +68,7 @@ var GenericWeather = function() {
           'GW_TEMPK': Math.round(json.main.temp),
           'GW_NAME': json.name,
           'GW_DESCRIPTION': json.weather[0].description,
-          'GW_DAY': (json.dt > json.sys.sunrise && json.dt < json.sys.sunset) ? 1 : 0,
+          'GW_DAY': (json.dt > json.sys.sunrise && json.dt < json.sys.sunset) ? true : false,
           'GW_CONDITIONCODE': condition,
           'GW_SUNRISE': json.sys.sunrise,
           'GW_SUNSET': json.sys.sunset
@@ -79,64 +81,81 @@ var GenericWeather = function() {
   };
 
   this._getWeatherWU = function(coords) {
-    var url = 'http://api.wunderground.com/api/' + this._apiKey + '/conditions/q/'
-      + coords.latitude + ',' + coords.longitude + '.json';
+    var url = 'http://api.wunderground.com/api/' + this._apiKey + '/conditions' +
+        (this._forecast ? '/hourly' : '') +'/q/' +
+        coords.latitude + ',' + coords.longitude + '.json';
 
     console.log('weather: Contacting WUnderground.com...');
-    // console.log(url);
+    console.log(url);
 
+    function parseIcon(condition) {
+      if(condition === 'clear' || condition === 'sunny'){
+        return conditions.ClearSky;
+      }
+      if(condition === 'mostlyysunny' || condition === 'partlycloudy'){
+        return conditions.FewClouds;
+      }
+      if(condition === 'partlysunny' || condition === 'mostlycloudy'){
+        return conditions.ScatteredClouds;
+      }
+      if(condition === 'cloudy'){
+        return conditions.BrokenClouds;
+      }
+      if(condition === 'rain'){
+        return conditions.Rain;
+      }
+      if(condition === 'chancerain' || condition === 'chancesleet'){
+        return conditions.ShowerRain;
+      }
+      if(condition === 'tstorms' || condition === 'chancetstorms'){
+        return conditions.Thunderstorm;
+      }
+      if(condition === 'snow' || condition === 'chancesnow' || condition === 'sleet' || condition === 'flurries'){
+        return conditions.Snow;
+      }
+      if(condition === 'fog' || condition === 'hazy'){
+        return conditions.Mist;
+      }
+      return conditions.Unknown;
+    }
+    
     this._xhrWrapper(url, 'GET', function(req) {
       console.log('weather: Got API response!');
       if(req.status == 200) {
         var json = JSON.parse(req.response);
 
-        // console.log(req.response);
-
-        var condition = json.current_observation.icon;
-        if(condition === 'clear' || condition === 'sunny'){
-          condition = conditions.ClearSky;
-        }
-        else if(condition === 'mostlyysunny' || condition === 'partlycloudy'){
-          condition = conditions.FewClouds;
-        }
-        else if(condition === 'partlysunny' || condition === 'mostlycloudy'){
-          condition = conditions.ScatteredClouds;
-        }
-        else if(condition === 'cloudy'){
-          condition = conditions.BrokenClouds;
-        }
-        else if(condition === 'rain'){
-          condition = conditions.Rain;
-        }
-        else if(condition === 'chancerain' || condition === 'chancesleet'){
-          condition = conditions.ShowerRain;
-        }
-        else if(condition === 'tstorms' || condition === 'chancetstorms'){
-          condition = conditions.Thunderstorm;
-        }
-        else if(condition === 'snow' || condition === 'chancesnow' || condition === 'sleet' || condition === 'flurries'){
-          condition = conditions.Snow;
-        }
-        else if(condition === 'fog' || condition === 'hazy'){
-          condition = conditions.Mist;
-        }
-        else {
-          condition = conditions.Unknown;
-        }
-
         var times = SunCalc.getTimes(new Date(), coords.latitude, coords.longitude);
         var temp = this._feelsLike ? parseFloat(json.current_observation.feelslike_c) : json.current_observation.temp_c;
 
-        Pebble.sendAppMessage({
-          'GW_REPLY': 1,
-          'GW_TEMPK': Math.round(temp + 273.15),
-          'GW_NAME': json.current_observation.display_location.city,
-          'GW_DESCRIPTION': json.current_observation.weather,
-          'GW_DAY': json.current_observation.icon_url.indexOf("nt_") == -1 ? 1 : 0,
-          'GW_CONDITIONCODE':condition,
-          'GW_SUNRISE': Math.round(+times.sunrise/1000),
-          'GW_SUNSET': Math.round(+times.sunset/1000)
-        });
+        var message = {};
+        message[keys.GW_REPLY] = true;
+        message[keys.GW_TEMPK] = Math.round(temp + 273.15);
+        message[keys.GW_NAME] = json.current_observation.display_location.city;
+        message[keys.GW_DESCRIPTION] = json.current_observation.weather;
+        message[keys.GW_DAY] = json.current_observation.icon_url.indexOf("nt_") == -1 ? true : false;
+        message[keys.GW_CONDITIONCODE] = parseIcon(json.current_observation.icon);
+        message[keys.GW_SUNRISE] = Math.round(+times.sunrise/1000);
+        message[keys.GW_SUNSET] = Math.round(+times.sunset/1000);
+
+        if (this._forecast && json.hourly_forecast) {
+          var forecasts = [];
+          json.hourly_forecast.forEach(function(forecast) {
+            forecasts.push({
+              temp: this._feelsLike ? parseInt(forecast.feelslike.metric) : parseInt(forecast.temp.metric),
+              time: parseInt(forecast.FCTTIME.epoch),
+              condition: parseIcon(forecast.icon)
+            });
+          });
+          for (var i = 1; i<forecasts.length && (i/2) < 24; i=i+2) {
+            // take every second item from forecast
+            var idx = parseInt(i/2);
+            message[keys.GW_FORECAST_TEMPK+idx] = Math.round(forecasts[i].temp + 273.15);
+            message[keys.GW_FORECAST_TIME+idx] = forecasts[i].time;
+            message[keys.GW_FORECAST_CONDITIONCODE+idx] = forecasts[i].condition;
+          }
+        }
+
+        Pebble.sendAppMessage(message);
       } else {
         console.log('weather: Error fetching data (HTTP Status: ' + req.status + ')');
         Pebble.sendAppMessage({ 'GW_BADKEY': 1 });
@@ -145,8 +164,11 @@ var GenericWeather = function() {
   };
 
   this._getWeatherF_IO = function(coords) {
-    var url = 'https://api.forecast.io/forecast/' + this._apiKey + '/'
-      + coords.latitude + ',' + coords.longitude + '?exclude=minutely,hourly,alerts,flags&units=si';
+    var url = 'https://api.forecast.io/forecast/' + 
+        this._apiKey + '/' +
+        coords.latitude + ',' + 
+        coords.longitude + 
+        '?exclude=minutely,hourly,alerts,flags&units=si';
 
     console.log('weather: Contacting forecast.io...');
     // console.log(url);
@@ -190,7 +212,7 @@ var GenericWeather = function() {
           'GW_REPLY': 1,
           'GW_TEMPK': Math.round(temp + 273.15),
           'GW_DESCRIPTION': json.currently.summary,
-          'GW_DAY': (json.currently.time > json.daily.data[0].sunriseTime && json.currently.time < json.daily.data[0].sunsetTime) ? 1 : 0,
+          'GW_DAY': (json.currently.time > json.daily.data[0].sunriseTime && json.currently.time < json.daily.data[0].sunsetTime) ? true : false,
           'GW_CONDITIONCODE':condition,
           'GW_SUNRISE': json.daily.data[0].sunriseTime,
           'GW_SUNSET': json.daily.data[0].sunsetTime
@@ -298,7 +320,7 @@ var GenericWeather = function() {
           'GW_TEMPK': Math.round(parseInt(json.query.results.channel.item.condition.temp) + 273.15),
           'GW_NAME': json.query.results.channel.location.city,
           'GW_DESCRIPTION': json.query.results.channel.item.condition.text,
-          'GW_DAY': is_day ? 1 : 0,
+          'GW_DAY': is_day ? true : false,
           'GW_CONDITIONCODE': condition,
           'GW_SUNRISE': json.query.results.channel.astronomy.sunrise,
           'GW_SUNSET': json.query.results.channel.astronomy.sunset
@@ -312,17 +334,15 @@ var GenericWeather = function() {
 
   function TimeParse(str) {
     var buff = str.split(" ");
+    var date = new Date();
     if(buff.length == 2) {
       var time = buff[0].split(":");
       if(buff[1].toLowerCase() == "pm" && parseInt(time[0]) != 12) {
         time[0] = parseInt(time[0]) + 12;
+        date.setHours(time[0]);
+        date.setMinutes(time[1]);
       }
     }
-
-    var date = new Date();
-    date.setHours(time[0]);
-    date.setMinutes(time[1]);
-
     return date;
   }
 
@@ -368,6 +388,13 @@ var GenericWeather = function() {
       }
       else if(dict.payload && 'GW_PROVIDER' in dict.payload){
         this._provider = dict.payload['GW_PROVIDER'];
+      }
+
+      if(options && 'forecast' in options){
+        this._forecast = options['forecast'];
+      }
+      else if(dict.payload && 'GW_FORECAST' in dict.payload){
+        this._forecast = dict.payload['GW_FORECAST'];
       }
 
       var location = undefined;
