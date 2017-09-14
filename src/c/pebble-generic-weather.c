@@ -51,6 +51,7 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
 
     // Read forecast
     if (s_forecast) {
+      forecastSize = 0;
       for (int i = 0; i<GENERIC_WEATHER_FORECAST_SIZE; i++) {
         Tuple *f_cond_tuple = dict_find(iter, MESSAGE_KEY_GW_FORECAST_CONDITIONCODE + i);
         if (f_cond_tuple) {
@@ -226,7 +227,7 @@ void generic_weather_save(const uint32_t key){
   if(!s_info) {
     return;
   }
-
+  persist_delete(key);
   persist_write_data(key, s_info, sizeof(GenericWeatherInfo));
 }
 
@@ -245,8 +246,10 @@ void generic_weather_save_forecast(const uint32_t key){
     return;
   }
   for (int i = 0; i < GENERIC_WEATHER_FORECAST_SIZE; i++) {
+    persist_delete(key+i);
     persist_write_data(key+i, forecast+i, sizeof(GenericWeatherForecast));
   }
+  persist_delete(key+GENERIC_WEATHER_FORECAST_SIZE);
   persist_write_int(key+GENERIC_WEATHER_FORECAST_SIZE, forecastSize);
 }
 
