@@ -158,7 +158,11 @@
         s_coordinates = GENERIC_WEATHER_GPS_LOCATION;
         s_status = GenericWeatherStatusNotYetFetched;
         s_forecast = false;
-        events_app_message_request_inbox_size(app_message_inbox_size_maximum());
+        int max = app_message_inbox_size_maximum();
+        if (max > 2048) {
+          max = 2048;
+        }
+        events_app_message_request_inbox_size(max);
         events_app_message_request_outbox_size(192);
         s_event_handle = events_app_message_register_inbox_received(inbox_received_handler, NULL);
         s_drop_handle = events_app_message_register_inbox_dropped(inbox_dropped_handler, NULL);
