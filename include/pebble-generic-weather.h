@@ -66,6 +66,10 @@ typedef struct {
   time_t timesunrise;
   //! Sunset time UTC
   time_t timesunset;
+  //! Latitude of the current location x 100000 (eg : 42.123456 -> 4212345)
+  int32_t latitude; 
+  //! Longitude of the current location x 100000 (eg : -12.354789 -> -1235478)
+  int32_t longitude;
 } GenericWeatherInfo;
 
 typedef struct {

@@ -49,6 +49,12 @@
           Tuple *sunset_tuple = dict_find(iter, MESSAGE_KEY_GW_SUNSET);
           s_info->timesunset = sunset_tuple->value->int32;
       
+          Tuple *lat_tuple = dict_find(iter, MESSAGE_KEY_GW_RESULT_LAT);
+          s_info->latitude = lat_tuple->value->int32;
+
+          Tuple *long_tuple = dict_find(iter, MESSAGE_KEY_GW_RESULT_LONG);
+          s_info->longitude = long_tuple->value->int32;
+          
           s_status = GenericWeatherStatusAvailable;
       
           // Read forecast
@@ -123,7 +129,7 @@
           dict_write_int32(out, MESSAGE_KEY_GW_PROVIDER, s_provider);
       
         if(s_coordinates.latitude != (int32_t)0xFFFFFFFF && s_coordinates.longitude != (int32_t)0xFFFFFFFF) {
-          APP_LOG(APP_LOG_LEVEL_INFO,"fetch: set coordinates %ld, %ld", s_coordinates.latitude, s_coordinates.longitude);
+          APP_LOG(APP_LOG_LEVEL_INFO,"fetch: set coordinates %d, %d", (int) s_coordinates.latitude, (int) s_coordinates.longitude);
           dict_write_int32(out, MESSAGE_KEY_GW_LATITUDE, s_coordinates.latitude);
           dict_write_int32(out, MESSAGE_KEY_GW_LONGITUDE, s_coordinates.longitude);
         }
