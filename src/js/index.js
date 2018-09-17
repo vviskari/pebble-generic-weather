@@ -40,7 +40,7 @@ var GenericWeather = function() {
     var url = 'http://api.openweathermap.org/data/2.5/weather?appid=' + 
         this._apiKey + '&lat=' + coords.latitude + '&lon=' + coords.longitude;
 
-    console.log('weather: Contacting OpenWeatherMap.org...');
+    console.log('weather: Contacting OpenWeatherMap.org...', url);
     // console.log(url);
 
     this._xhrWrapper(url, 'GET', function(req) {
@@ -71,7 +71,9 @@ var GenericWeather = function() {
           'GW_DAY': (json.dt > json.sys.sunrise && json.dt < json.sys.sunset) ? true : false,
           'GW_CONDITIONCODE': condition,
           'GW_SUNRISE': json.sys.sunrise,
-          'GW_SUNSET': json.sys.sunset
+          'GW_SUNSET': json.sys.sunset,
+          'GW_RESULT_LAT': Math.round(coords.latitude*100000),
+          'GW_RESULT_LONG': Math.round(coords.longitude*100000)
         });
       } else {
         console.log('weather: Error fetching data (HTTP Status: ' + req.status + ')');
@@ -85,8 +87,7 @@ var GenericWeather = function() {
         (this._forecast ? '/hourly' : '') +'/q/' +
         coords.latitude + ',' + coords.longitude + '.json';
 
-    console.log('weather: Contacting WUnderground.com...');
-    console.log(url);
+    console.log('weather: Contacting WUnderground.com...', url);
 
     function parseIcon(condition) {
       if(condition === 'clear' || condition === 'sunny'){
@@ -136,7 +137,9 @@ var GenericWeather = function() {
         message[keys.GW_CONDITIONCODE] = parseIcon(json.current_observation.icon);
         message[keys.GW_SUNRISE] = Math.round(+times.sunrise/1000);
         message[keys.GW_SUNSET] = Math.round(+times.sunset/1000);
-
+        message[keys.GW_RESULT_LAT] = Math.round(coords.latitude*100000);
+        message[keys.GW_RESULT_LONG] = Math.round(coords.longitude*100000);
+        
         if (this._forecast && json.hourly_forecast) {
           var forecasts = [];
           json.hourly_forecast.forEach(function(forecast) {
@@ -170,8 +173,7 @@ var GenericWeather = function() {
         coords.longitude + 
         '?exclude=minutely,hourly,alerts,flags&units=si';
 
-    console.log('weather: Contacting forecast.io...');
-    // console.log(url);
+    console.log('weather: Contacting forecast.io...', url);
 
     this._xhrWrapper(url, 'GET', function(req) {
       console.log('weather: Got API response!');
@@ -215,7 +217,9 @@ var GenericWeather = function() {
           'GW_DAY': (json.currently.time > json.daily.data[0].sunriseTime && json.currently.time < json.daily.data[0].sunsetTime) ? true : false,
           'GW_CONDITIONCODE':condition,
           'GW_SUNRISE': json.daily.data[0].sunriseTime,
-          'GW_SUNSET': json.daily.data[0].sunsetTime
+          'GW_SUNSET': json.daily.data[0].sunsetTime,
+          'GW_RESULT_LAT': Math.round(coords.latitude*100000),
+          'GW_RESULT_LONG': Math.round(coords.longitude*100000)
         };
 
         url = 'http://nominatim.openstreetmap.org/reverse?format=json&lat=' + coords.latitude + '&lon=' + coords.longitude;
@@ -241,7 +245,7 @@ var GenericWeather = function() {
     var url = 'https://query.yahooapis.com/v1/public/yql?q=select astronomy, location.city, item.condition from weather.forecast where woeid in '+
             '(select woeid from geo.places(1) where text=\'(' + coords.latitude+','+coords.longitude+')\') and u=\'c\'&format=json';
 
-    console.log('weather: Contacting Yahoo! Weather...');
+    console.log('weather: Contacting Yahoo! Weather...', url);
     // console.log(url);
 
     this._xhrWrapper(encodeURI(url), 'GET', function(req) {
@@ -323,7 +327,9 @@ var GenericWeather = function() {
           'GW_DAY': is_day ? true : false,
           'GW_CONDITIONCODE': condition,
           'GW_SUNRISE': json.query.results.channel.astronomy.sunrise,
-          'GW_SUNSET': json.query.results.channel.astronomy.sunset
+          'GW_SUNSET': json.query.results.channel.astronomy.sunset,
+          'GW_RESULT_LAT': Math.round(coords.latitude*100000),
+          'GW_RESULT_LONG': Math.round(coords.longitude*100000)          
         });
       } else {
         console.log('weather: Error fetching data (HTTP Status: ' + req.status + ')');
@@ -357,7 +363,7 @@ var GenericWeather = function() {
   };
 
   this._onLocationSuccess = function(pos) {
-    console.log('weather: Location success');
+    console.log('weather: Location success', JSON.stringify(pos));
     this._getWeather(pos.coords);
   };
 
@@ -413,7 +419,7 @@ var GenericWeather = function() {
       }
 
       if(location) {
-        console.log('weather: use user defined location');
+        console.log('weather: use user defined location', JSON.stringify(location));
         this._getWeather(location);
       }
       else {
